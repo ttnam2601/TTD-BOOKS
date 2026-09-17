@@ -44,9 +44,9 @@ export class AuthService {
     const body = Buffer.from(JSON.stringify({ ...payload, exp })).toString('base64url');
     const signature = crypto
       .createHmac('sha256', this.jwtSecret)
-      .update(${header}.)
+      .update(`${header}.${body}`)
       .digest('base64url');
-    return ${header}..;
+    return `${header}.${body}.${signature}`;
   }
 
   /**
@@ -61,7 +61,7 @@ export class AuthService {
       const [header, body, signature] = parts;
       const expectedSig = crypto
         .createHmac('sha256', this.jwtSecret)
-        .update(${header}.)
+        .update(`${header}.${body}`)
         .digest('base64url');
 
       if (signature !== expectedSig) {

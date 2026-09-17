@@ -94,8 +94,7 @@ const handleLogin = async () => {
     const res = await api.post('/auth/login', form.value);
     if (res.data.success) {
       localStorage.setItem('token', res.data.token);
-      localStorage.setItem('user', JSON.stringify(res.data.user));
-      ElMessage.success(Xin chào, !);
+      ElMessage.success(`Xin chào, ${res.data.user.full_name || res.data.user.username}!`);
       emit('login-success', res.data.user);
     }
   } catch (err: any) {

@@ -128,7 +128,13 @@ export class GoogleSheetsService {
         }
 
         const students: StudentMasterRow[] = rows
-          .filter((r) => (r[14] && r[14].toString().trim() !== '') || (r[0] && r[0].toString().trim() !== ''))
+          .filter((r) => {
+            const hasId = (r[14] && r[14].toString().trim() !== '') || (r[0] && r[0].toString().trim() !== '');
+            const subjectVal = r[9]?.toString().trim() || '';
+            // 2026-09-17 (Anh chốt): Chỉ lấy học sinh thuộc môn Toán
+            const isMath = subjectVal === 'Toán' || subjectVal.toLowerCase().includes('toán');
+            return hasId && isMath;
+          })
           .map((r) => {
             const sid = r[0]?.toString().trim() || '';
             const fullName = r[1]?.toString().trim() || 'Học sinh';

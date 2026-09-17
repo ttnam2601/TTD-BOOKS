@@ -193,11 +193,11 @@ CREATE TABLE IF NOT EXISTS users (
 );
 
 -- Seed tài khoản mặc định:
--- vandon / vandon@123 (DISPATCHER) -> SHA256: 74d812d3b45fe3108c4e09f584e0c4e70e9471f0dd854746f3458c973a9ebcf5
--- xeplop / xeplop@123 (COORDINATOR) -> SHA256: d8d745428a2a466ec555a6d59bb767851e3cbdbd1cf6a524adbc1cf99486c9ff
+-- vandon / vandon@123 (DISPATCHER) -> SHA256: fd0b9c713a253163db346d6f7a4a53dc41dd91f63c16cd934c3bfee512e6911a
+-- xeplop / xeplop@123 (COORDINATOR) -> SHA256: 926329e4bf016d647e7164bb895e65e4ee21cd1f4237d58058636c7368f741d9
 INSERT INTO users (username, password_hash, full_name, role)
 VALUES 
-    ('vandon', '74d812d3b45fe3108c4e09f584e0c4e70e9471f0dd854746f3458c973a9ebcf5', 'Bộ Phận Vận Đơn', 'DISPATCHER'),
-    ('xeplop', 'd8d745428a2a466ec555a6d59bb767851e3cbdbd1cf6a524adbc1cf99486c9ff', 'Bộ Phận Xếp Lớp', 'COORDINATOR')
-ON CONFLICT (username) DO NOTHING;
+    ('vandon', 'fd0b9c713a253163db346d6f7a4a53dc41dd91f63c16cd934c3bfee512e6911a', 'Bộ Phận Vận Đơn', 'DISPATCHER'),
+    ('xeplop', '926329e4bf016d647e7164bb895e65e4ee21cd1f4237d58058636c7368f741d9', 'Bộ Phận Xếp Lớp', 'COORDINATOR')
+ON CONFLICT (username) DO UPDATE SET password_hash = EXCLUDED.password_hash;
 

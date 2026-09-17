@@ -69,7 +69,18 @@
           <BookSettingsView />
         </el-tab-pane>
 
-        <!-- Tab 3: Lịch Sử & Audit Logs (Cả 2 role đều theo dõi đối soát) -->
+        <!-- Tab 3: Danh Sách Học Sinh (Master Data) -->
+        <el-tab-pane name="students">
+          <template #label>
+            <span class="tab-label">
+              <el-icon><User /></el-icon>
+              <span>Học Sinh Master (Google Sheets)</span>
+            </span>
+          </template>
+          <StudentsMasterView />
+        </el-tab-pane>
+
+        <!-- Tab 4: Lịch Sử & Audit Logs (Cả 2 role đều theo dõi đối soát) -->
         <el-tab-pane name="history">
           <template #label>
             <span class="tab-label">
@@ -90,6 +101,7 @@ import { ElMessage } from 'element-plus';
 import LoginView from './views/LoginView.vue';
 import ShippingQueueView from './views/ShippingQueueView.vue';
 import BookSettingsView from './views/BookSettingsView.vue';
+import StudentsMasterView from './views/StudentsMasterView.vue';
 import AuditLogsView from './views/AuditLogsView.vue';
 import api from './api/client';
 

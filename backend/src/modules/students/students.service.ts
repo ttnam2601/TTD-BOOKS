@@ -1,4 +1,4 @@
-﻿// ============================================================================
+// ============================================================================
 // STUDENTS SERVICE & EXCEL IMPORT
 // Version: v2026.09.17.01
 // 2026-09-17 (Anh chốt): Xử lý import Excel bổ sung SĐT và Địa chỉ giao hàng liên kết theo student_uid
@@ -14,10 +14,96 @@ export class StudentsService {
 
   constructor(private readonly prisma: PrismaService) {}
 
-  async getAllStudents() {
-    return this.prisma.studentsMaster.findMany({
-      orderBy: { student_uid: 'asc' },
+  async getAllStudents(params?: {
+    search?: string;
+    status?: string;
+    level?: string;
+    page?: number;
+    limit?: number;
+  }) {
+    const page = params?.page || 1;
+    const limit = params?.limit || 50;
+    const skip = (page - 1) * limit;
+
+    const where: any = {};
+    if (params?.status) {
+      where.status = params.status;
+    }
+    if (params?.level) {
+      where.level = params.level;
+    }
+    if (params?.search) {
+      const q = params.search.trim();
+      where.OR = [
+        { student_uid: { contains: q, mode: 'insensitive' } },
+        { sid: { contains: q, mode: 'insensitive' } },
+        { cid: { contains: q, mode: 'insensitive' } },
+        { full_name: { contains: q, mode: 'insensitive' } },
+        { class_name: { contains: q, mode: 'insensitive' } },
+        { class_code: { contains: q, mode: 'insensitive' } },
+      ];
+    }
+
+    const [total, students, stats] = await Promise.all([
+      this.prisma.studentsMaster.count({ where }),
+      this.prisma.studentsMaster.findMany({
+        where,
+        orderBy: { student_uid: 'asc' },
+        skip,
+        take: limit,
+      }),
+      this.prisma.studentsMaster.aggregate({
+        _count: {
+          _all: true,
+          phone: true,
+        },
+      }),
+    ]);
+
+    // Lấy danh sách levels duy nhất cho filter
+    const levels = await this.prisma.studentsMaster.findMany({
+      select: { level: true },
+      distinct: ['level'],
     });
+
+    return {
+      total,
+      page,
+      limit,
+      total_pages: Math.ceil(total / limit),
+      available_levels: levels.map((l) => l.level).filter(Boolean),
+      students,
+    };
+  }
+
+  /**
+   * 2026-09-17 (Anh chốt): Lấy hồ sơ chi tiết học sinh, lịch sử nhận sách và nhật ký biến động (Audit Trail theo UID/SID)
+   */
+  async getStudentDetail(studentUid: string) {
+    const student = await this.prisma.studentsMaster.findUnique({
+      where: { student_uid: studentUid },
+    });
+
+    if (!student) {
+      return null;
+    }
+
+    const [shippingHistory, actionLogs] = await Promise.all([
+      this.prisma.shippingHistory.findMany({
+        where: { student_uid: studentUid },
+        orderBy: { shipped_at: 'desc' },
+      }),
+      this.prisma.actionLogs.findMany({
+        where: { entity_id: studentUid },
+        orderBy: { created_at: 'desc' },
+      }),
+    ]);
+
+    return {
+      student,
+      shipping_history: shippingHistory,
+      action_logs: actionLogs,
+    };
   }
 
   /**
