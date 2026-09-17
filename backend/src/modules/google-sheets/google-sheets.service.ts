@@ -1,4 +1,4 @@
-﻿// ============================================================================
+// ============================================================================
 // GOOGLE SHEETS SERVICE
 // Version: v2026.09.17.01
 // 2026-09-17 (Anh chốt): Đồng bộ dữ liệu học vụ từ Sheet Class.Student.Total (Spreadsheet ID: 1YndQ-dB3jDJMGDUFW6AlSU-14wvFY9dtpx-lrGlpEKk)
@@ -26,28 +26,48 @@ export class GoogleSheetsService {
 
   /**
    * 2026-09-17 (Anh chốt): Lấy client Google Sheets với Service Account và cơ chế Exponential Backoff
+   * Khắc phục triệt để lỗi EISDIR khi Docker mount nhầm directory nếu file chưa tồn tại
    */
   private getSheetsClient() {
-    const credsPath = process.env.GOOGLE_SERVICE_ACCOUNT_PATH || path.join(process.cwd(), 'credentials.json');
-    
-    if (fs.existsSync(credsPath)) {
-      const auth = new google.auth.GoogleAuth({
-        keyFile: credsPath,
-        scopes: ['https://www.googleapis.com/auth/spreadsheets.readonly'],
-      });
-      return google.sheets({ version: 'v4', auth });
+    try {
+      const credsPath = process.env.GOOGLE_SERVICE_ACCOUNT_PATH || path.join(process.cwd(), 'credentials.json');
+      
+      // 2026-09-17 (Anh chốt): Bắt buộc kiểm tra fs.statSync(credsPath).isFile() để tránh lỗi EISDIR
+      if (fs.existsSync(credsPath)) {
+        const stat = fs.statSync(credsPath);
+        if (stat.isFile()) {
+          const auth = new google.auth.GoogleAuth({
+            keyFile: credsPath,
+            scopes: ['https://www.googleapis.com/auth/spreadsheets.readonly'],
+          });
+          return google.sheets({ version: 'v4', auth });
+        } else {
+          this.logger.warn(`Đường dẫn ${credsPath} là một thư mục (do docker mount tự sinh), bỏ qua nạp file.`);
+        }
+      }
+
+      if (process.env.GOOGLE_SERVICE_ACCOUNT_JSON) {
+        let jsonStr = process.env.GOOGLE_SERVICE_ACCOUNT_JSON.trim();
+        // Hỗ trợ Base64 encoded JSON nếu có
+        if (!jsonStr.startsWith('{')) {
+          try {
+            jsonStr = Buffer.from(jsonStr, 'base64').toString('utf-8');
+          } catch (e) {
+            // Không phải base64, giữ nguyên
+          }
+        }
+        const credentials = JSON.parse(jsonStr);
+        const auth = new google.auth.GoogleAuth({
+          credentials,
+          scopes: ['https://www.googleapis.com/auth/spreadsheets.readonly'],
+        });
+        return google.sheets({ version: 'v4', auth });
+      }
+    } catch (err) {
+      this.logger.error(`Lỗi khởi tạo Google Auth: ${err.message}`);
     }
 
-    if (process.env.GOOGLE_SERVICE_ACCOUNT_JSON) {
-      const credentials = JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_JSON);
-      const auth = new google.auth.GoogleAuth({
-        credentials,
-        scopes: ['https://www.googleapis.com/auth/spreadsheets.readonly'],
-      });
-      return google.sheets({ version: 'v4', auth });
-    }
-
-    this.logger.warn('Chưa cấu hình Google Service Account credentials. Sử dụng Mock dữ liệu cho môi trường Development.');
+    this.logger.warn('Chưa cấu hình Google Service Account credentials hợp lệ. Sử dụng Mock dữ liệu cho môi trường Development.');
     return null;
   }
 

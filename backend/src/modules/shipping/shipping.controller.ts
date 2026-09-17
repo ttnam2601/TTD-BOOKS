@@ -1,4 +1,4 @@
-﻿// ============================================================================
+// ============================================================================
 // SHIPPING CONTROLLER
 // Version: v2026.09.17.01
 // 2026-09-17 (Anh chốt): REST API quản lý hàng đợi xuất kho, lịch sử và xác nhận xuất kho
@@ -51,6 +51,19 @@ export class ShippingController {
     }
   }
 
+  @Post('manual-request')
+  async createManualRequest(@Body() dto: any) {
+    try {
+      const result = await this.shippingService.createManualRequest(dto);
+      return result;
+    } catch (error) {
+      throw new HttpException(
+        { success: false, message: error.message },
+        error.getStatus ? error.getStatus() : HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
   @Get('logs')
   async getAuditLogs(@Query('limit') limit?: string) {
     try {
@@ -61,3 +74,4 @@ export class ShippingController {
     }
   }
 }
+

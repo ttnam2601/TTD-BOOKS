@@ -1,5 +1,5 @@
-﻿# Hệ Thống Tự Động Hóa Vận Đơn & Xuất Kho Sách (Automated Book Shipping System)
-**Phiên bản**: `v2026.09.17.01` | **Mô hình**: Monorepo NestJS + Prisma + Vue 3 (Element Plus) + Docker Compose
+# Hệ Thống Tự Động Hóa Vận Đơn & Xuất Kho Sách (Automated Book Shipping System)
+**Phiên bản**: `v2026.09.17.02` | **Mô hình**: Monorepo NestJS + Prisma + Vue 3 (Element Plus) + Docker Compose
 
 Dự án được xây dựng và chuẩn hóa theo **Quy trình Phối hợp Đa Agent (9-Agent Pipeline System)** chuẩn Enterprise, đáp ứng trọn vẹn nghiệp vụ tự động hóa xuất kho và quản trị vận đơn sách học viên.
 
@@ -7,25 +7,32 @@ Dự án được xây dựng và chuẩn hóa theo **Quy trình Phối hợp Đ
 
 ## 1. Điểm Nhấn Kiến Trúc & Nghiệp Vụ
 
-1. **CSDL PostgreSQL 15+ với Audit Trigger mức DB**:
+1. **Hệ Thống Phân Quyền RBAC 2 Vai Trò & Bảo Mật JWT (Mới trong v2026.09.17.02)**:
+   - **Xếp Lớp (`COORDINATOR`)**: Điền tay học sinh cần ship sách trước khi hệ thống bắt tự động (*Chờ xếp lớp, Chờ chuyển lớp, Chuyển phí*). Đơn được gán nhãn `MANUAL_REQUEST` và chuyển vào hàng đợi để check chéo.
+   - **Vận Đơn (`DISPATCHER`)**: Xử lý toàn bộ các đơn trong hàng đợi (*Chờ khai giảng, Đang học, Lớp nháp* và đơn điền tay từ Xếp lớp), kiểm tra địa chỉ, thực hiện xuất kho và quản lý cấu hình sách.
+   - Tài khoản mặc định: `xeplop` / `xeplop@123` và `vandon` / `vandon@123`.
+2. **Khắc Phục Lỗi Google Sheets (EISDIR)**:
+   - Kiểm tra `isFile()` tránh lỗi Docker mount nhầm thư mục, hỗ trợ truyền thẳng biến môi trường `GOOGLE_SERVICE_ACCOUNT_JSON` và tự động fallback mock an toàn.
+3. **CSDL PostgreSQL 15+ với Audit Trigger mức DB**:
    - `students_master`: Lưu bản sao Master DB từ Google Sheets kèm thông tin SĐT & Địa chỉ giao hàng.
    - `book_catalog`: Bảng ánh xạ ma trận `(Trình độ, Tháng 1..12) -> Mã sách, Tên sách`.
    - `shipping_queue`: Hàng đợi lệnh chờ xuất kho. Chống sinh trùng lặp đơn qua constraint `(student_uid, book_code, status)`.
    - `shipping_history`: Lịch sử lưu vết phục vụ tính chu kỳ 60 ngày cho Worker 2.
    - `action_logs`: Nhật ký kiểm toán JSONB tự động sinh bởi PostgreSQL Trigger `AFTER UPDATE` khi học sinh đổi trạng thái/lớp/trình độ.
-2. **Hàm Cốt Lõi `Get_Book_Set(level, currentMonth)`**:
+   - `users`: Bảng người dùng phân quyền vai trò.
+4. **Hàm Cốt Lõi `Get_Book_Set(level, currentMonth)`**:
    - Ánh xạ tự động Trình độ và Tháng hiện tại để xác định đúng cuốn sách cần ship.
    - Nếu thiếu cấu hình: Tự động ghi nhận log `WARNING_NO_BOOK_CONFIG` vào `Action_Logs`, hiển thị cảnh báo trên Admin Dashboard và không tạo đơn rác.
-3. **Hai Worker Xử Lý Tự Động**:
+5. **Hai Worker Xử Lý Tự Động**:
    - **Worker 1 (Hourly Sync & State-Machine - Phút 20 mỗi giờ)**: Đồng bộ Google Sheets (`Class.Student.Total`), kích hoạt DB Trigger, cấp sách cho học sinh mới vào lớp (`FIRST_TIME`) và học sinh thăng Trình độ (`LEVEL_UPGRADED`).
    - **Worker 2 (Daily Catch-up - 00:00 mỗi ngày)**: Quét học sinh `ACTIVE`, so sánh `CURRENT_DATE - Last_Shipped_Date >= 60 ngày`, kiểm tra pending queue và dedup để sinh đơn bù chu kỳ.
-4. **Phòng Vệ Red-Team & Vận Hành An Toàn**:
+6. **Phòng Vệ Red-Team & Vận Hành An Toàn**:
    - Khóa **PostgreSQL Advisory Lock** (`pg_try_advisory_lock(1001)`) chống Race Condition khi vừa chạy Cron vừa bấm nút Đồng bộ thủ công (`POST /api/sync/manual`).
    - Giao dịch **Prisma Transaction** khi xác nhận xuất kho chống Double-shipping.
    - Cơ chế **Import Excel SĐT & Địa chỉ** bù đắp dữ liệu giao hàng trực tiếp trên UI.
-5. **Tiêu Chuẩn Anti-AI-Slop & UX**:
+7. **Tiêu Chuẩn Anti-AI-Slop & UX**:
    - 100% SVG Element Plus Icons (không dùng Emoji nguyên bản).
-   - Kích thước chạm tối thiểu 44px, hiển thị badge phiên bản `v2026.09.17.01` và cache busting.
+   - Kích thước chạm tối thiểu 44px, hiển thị badge phiên bản `v2026.09.17.02` và cache busting.
 
 ---
 

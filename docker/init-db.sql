@@ -1,4 +1,4 @@
-﻿-- ============================================================================
+-- ============================================================================
 -- AUTOMATED BOOK SHIPPING SYSTEM - POSTGRESQL 15+ DATABASE SCHEMA
 -- Version: v2026.09.17.01
 -- 2026-09-17 (Anh chốt): Chuẩn hóa hệ cơ sở dữ liệu quan hệ 5 bảng kèm Audit Trigger tự động ghi JSONB Action_Logs
@@ -160,3 +160,27 @@ CREATE TRIGGER trg_audit_students_master
 AFTER UPDATE ON students_master
 FOR EACH ROW
 EXECUTE FUNCTION trg_fn_audit_students_master();
+
+-- ============================================================================
+-- 7. BẢNG USERS (Quản trị Phân quyền: Vận Đơn & Xếp Lớp)
+-- 2026-09-17 (Anh chốt): Role COORDINATOR (Xếp lớp) và DISPATCHER (Vận đơn)
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS users (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    username VARCHAR(50) UNIQUE NOT NULL,
+    password_hash VARCHAR(255) NOT NULL,
+    full_name VARCHAR(100) NOT NULL,
+    role VARCHAR(50) NOT NULL CHECK (role IN ('COORDINATOR', 'DISPATCHER', 'ADMIN')),
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Seed tài khoản mặc định:
+-- vandon / vandon@123 (DISPATCHER) -> SHA256: 74d812d3b45fe3108c4e09f584e0c4e70e9471f0dd854746f3458c973a9ebcf5
+-- xeplop / xeplop@123 (COORDINATOR) -> SHA256: d8d745428a2a466ec555a6d59bb767851e3cbdbd1cf6a524adbc1cf99486c9ff
+INSERT INTO users (username, password_hash, full_name, role)
+VALUES 
+    ('vandon', '74d812d3b45fe3108c4e09f584e0c4e70e9471f0dd854746f3458c973a9ebcf5', 'Bộ Phận Vận Đơn', 'DISPATCHER'),
+    ('xeplop', 'd8d745428a2a466ec555a6d59bb767851e3cbdbd1cf6a524adbc1cf99486c9ff', 'Bộ Phận Xếp Lớp', 'COORDINATOR')
+ON CONFLICT (username) DO NOTHING;
+

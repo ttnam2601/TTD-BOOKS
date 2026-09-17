@@ -1,4 +1,4 @@
-﻿<!-- ============================================================================
+<!-- ============================================================================
      SHIPPING QUEUE VIEW COMPONENT
      Version: v2026.09.17.01
      2026-09-17 (Anh chốt): Giao diện Hàng đợi xuất kho với nút Đồng bộ Master DB khẩn cấp,
@@ -30,14 +30,30 @@
       </div>
 
       <div class="action-group">
-        <!-- Nút Import Excel SĐT & Địa chỉ -->
-        <el-button type="info" plain @click="showImportDialog = true">
+        <!-- 2026-09-17 (Anh chốt): Nút Điền tay dành riêng cho bộ phận Xếp lớp -->
+        <el-button
+          v-if="userRole === 'COORDINATOR' || userRole === 'ADMIN'"
+          type="primary"
+          @click="showManualDialog = true"
+        >
+          <el-icon><EditPen /></el-icon>
+          <span>Điền tay đơn cần ship (Xếp lớp)</span>
+        </el-button>
+
+        <!-- Nút Import Excel SĐT & Địa chỉ (Vận đơn hoặc Admin) -->
+        <el-button
+          v-if="userRole !== 'COORDINATOR'"
+          type="info"
+          plain
+          @click="showImportDialog = true"
+        >
           <el-icon><Upload /></el-icon>
           <span>Import SĐT & Địa chỉ (Excel)</span>
         </el-button>
 
-        <!-- 2026-09-17 (Anh chốt): Nút Đồng bộ Master DB khẩn cấp với spinner loading và toast thông báo -->
+        <!-- 2026-09-17 (Anh chốt): Nút Đồng bộ Master DB khẩn cấp -->
         <el-button
+          v-if="userRole !== 'COORDINATOR'"
           type="warning"
           :loading="syncing"
           @click="handleManualSync"
@@ -46,8 +62,9 @@
           <span>Đồng bộ Master DB khẩn cấp</span>
         </el-button>
 
-        <!-- Nút Xác nhận gửi hàng loạt -->
+        <!-- Nút Xác nhận gửi hàng loạt (Dành cho Vận đơn) -->
         <el-button
+          v-if="userRole !== 'COORDINATOR'"
           type="success"
           :disabled="selectedRows.length === 0"
           @click="openConfirmDialog(selectedRows)"
@@ -112,7 +129,7 @@
           </template>
         </el-table-column>
 
-        <el-table-column prop="trigger_reason" label="Lý do sinh lệnh" width="150">
+        <el-table-column prop="trigger_reason" label="Lý do sinh lệnh" width="160">
           <template #default="{ row }">
             <el-tag v-if="row.trigger_reason === 'FIRST_TIME'" size="small" type="success">
               Mới vào lớp
@@ -122,6 +139,9 @@
             </el-tag>
             <el-tag v-else-if="row.trigger_reason === '60_DAYS_INTERVAL'" size="small" type="warning">
               Chu kỳ 60 ngày
+            </el-tag>
+            <el-tag v-else-if="row.trigger_reason === 'MANUAL_REQUEST'" size="small" type="danger" effect="light">
+              Xếp lớp điền tay
             </el-tag>
             <el-tag v-else size="small" type="info">Thủ công</el-tag>
           </template>
@@ -133,9 +153,15 @@
           </template>
         </el-table-column>
 
-        <el-table-column label="Hành động" width="140" align="center" fixed="right">
+        <el-table-column
+          v-if="userRole !== 'COORDINATOR'"
+          label="Hành động"
+          width="140"
+          align="center"
+          fixed="right"
+        >
           <template #default="{ row }">
-            <!-- Nút Xác nhận gửi đơn lẻ -->
+            <!-- Nút Xác nhận gửi đơn lẻ dành cho Vận đơn -->
             <el-button
               size="small"
               type="primary"
@@ -240,6 +266,85 @@
           <el-button type="primary" :loading="importing" :disabled="!selectedFile" @click="submitImportExcel">
             <el-icon><Upload /></el-icon>
             <span>Bắt đầu Import</span>
+          </el-button>
+        </span>
+      </template>
+    </el-dialog>
+
+    <!-- 2026-09-17 (Anh chốt): Dialog Điền tay đơn sách dành riêng cho bộ phận Xếp lớp -->
+    <el-dialog
+      v-model="showManualDialog"
+      title="Điền Tay Học Sinh Cần Ship Sách Sớm (Bộ Phận Xếp Lớp)"
+      width="560px"
+      destroy-on-close
+    >
+      <el-form :model="manualForm" label-width="140px" label-position="left">
+        <el-alert
+          title="Áp dụng cho học sinh cần nhận sách trước: Chờ xếp lớp, Chờ chuyển lớp, Chuyển phí. Đơn sẽ vào hàng đợi để bộ phận Vận đơn check chéo & xuất kho."
+          type="warning"
+          :closable="false"
+          show-icon
+          style="margin-bottom: 18px;"
+        />
+
+        <el-form-item label="Mã Học Sinh (UID)" required>
+          <el-input v-model="manualForm.student_uid" placeholder="Ví dụ: HS0099" />
+        </el-form-item>
+
+        <el-form-item label="Họ và Tên">
+          <el-input v-model="manualForm.full_name" placeholder="Nhập tên học sinh" />
+        </el-form-item>
+
+        <el-form-item label="Trình độ" required>
+          <el-select v-model="manualForm.level" placeholder="Chọn trình độ" style="width: 100%;">
+            <el-option label="Trình độ A" value="Trình độ A" />
+            <el-option label="Trình độ B" value="Trình độ B" />
+            <el-option label="Trình độ C" value="Trình độ C" />
+            <el-option label="Trình độ D" value="Trình độ D" />
+          </el-select>
+        </el-form-item>
+
+        <el-form-item label="Lớp học" required>
+          <el-input v-model="manualForm.class_name" placeholder="Ví dụ: Lớp A.02" />
+        </el-form-item>
+
+        <el-form-item label="Trạng thái" required>
+          <el-select v-model="manualForm.status" placeholder="Chọn trạng thái" style="width: 100%;">
+            <el-option label="Chờ xếp lớp" value="Chờ xếp lớp" />
+            <el-option label="Chờ chuyển lớp" value="Chờ chuyển lớp" />
+            <el-option label="Chuyển phí" value="Chuyển phí" />
+          </el-select>
+        </el-form-item>
+
+        <el-form-item label="Số điện thoại">
+          <el-input v-model="manualForm.phone" placeholder="SĐT phụ huynh / người nhận" />
+        </el-form-item>
+
+        <el-form-item label="Địa chỉ nhận">
+          <el-input
+            v-model="manualForm.shipping_address"
+            type="textarea"
+            :rows="2"
+            placeholder="Địa chỉ giao hàng chi tiết"
+          />
+        </el-form-item>
+
+        <el-form-item label="Ghi chú lý do">
+          <el-input
+            v-model="manualForm.notes"
+            type="textarea"
+            :rows="2"
+            placeholder="Lý do ship sớm (check chéo)..."
+          />
+        </el-form-item>
+      </el-form>
+
+      <template #footer>
+        <span class="dialog-footer">
+          <el-button @click="showManualDialog = false">Hủy</el-button>
+          <el-button type="primary" :loading="submittingManual" @click="submitManualRequest">
+            <el-icon><Check /></el-icon>
+            <span>Tạo lệnh chờ xuất kho</span>
           </el-button>
         </span>
       </template>
@@ -370,6 +475,66 @@ const submitImportExcel = async () => {
   }
 };
 
+const props = withDefaults(
+  defineProps<{
+    userRole?: string;
+    userName?: string;
+  }>(),
+  {
+    userRole: 'DISPATCHER',
+    userName: 'Nhân sự Kho',
+  }
+);
+
+const showManualDialog = ref(false);
+const submittingManual = ref(false);
+const manualForm = ref({
+  student_uid: '',
+  full_name: '',
+  level: 'Trình độ A',
+  class_name: '',
+  status: 'Chờ xếp lớp',
+  phone: '',
+  shipping_address: '',
+  notes: '',
+});
+
+// 2026-09-17 (Anh chốt): Gửi yêu cầu ship sách thủ công từ bộ phận Xếp lớp
+const submitManualRequest = async () => {
+  if (!manualForm.value.student_uid || !manualForm.value.class_name) {
+    ElMessage.warning('Vui lòng nhập Mã học sinh và Tên lớp');
+    return;
+  }
+
+  submittingManual.value = true;
+  try {
+    const res = await api.post('/shipping/manual-request', {
+      ...manualForm.value,
+      created_by: `${props.userName} (${props.userRole})`,
+    });
+
+    if (res.data.success) {
+      ElMessage.success(res.data.message || 'Tạo yêu cầu thành công!');
+      showManualDialog.value = false;
+      manualForm.value = {
+        student_uid: '',
+        full_name: '',
+        level: 'Trình độ A',
+        class_name: '',
+        status: 'Chờ xếp lớp',
+        phone: '',
+        shipping_address: '',
+        notes: '',
+      };
+      await fetchQueue();
+    }
+  } catch (err: any) {
+    ElMessage.error(err.response?.data?.message || 'Lỗi khi tạo lệnh xuất sách thủ công');
+  } finally {
+    submittingManual.value = false;
+  }
+};
+
 const formatDate = (dateStr: string) => {
   if (!dateStr) return '';
   const d = new Date(dateStr);
@@ -383,6 +548,9 @@ const formatDate = (dateStr: string) => {
 };
 
 onMounted(() => {
+  if (props.userName) {
+    shippingForm.value.confirmed_by = props.userName;
+  }
   fetchQueue();
 });
 </script>

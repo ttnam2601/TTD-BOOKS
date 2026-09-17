@@ -1,4 +1,4 @@
-﻿// ============================================================================
+// ============================================================================
 // APP MODULE
 // Version: v2026.09.17.01
 // 2026-09-17 (Anh chốt): Gom toàn bộ các module nghiệp vụ và kích hoạt Task Scheduling (node-cron)
@@ -14,12 +14,14 @@ import { StudentsModule } from './modules/students/students.module';
 import { ShippingModule } from './modules/shipping/shipping.module';
 import { WorkersModule } from './modules/workers/workers.module';
 import { SyncModule } from './modules/sync/sync.module';
+import { AuthModule } from './modules/auth/auth.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
     ScheduleModule.forRoot(),
     PrismaModule,
+    AuthModule,
     BookCatalogModule,
     GoogleSheetsModule,
     StudentsModule,

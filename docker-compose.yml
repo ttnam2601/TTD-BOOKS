@@ -1,4 +1,4 @@
-﻿version: '3.8'
+version: '3.8'
 
 # ============================================================================
 # DOCKER COMPOSE CONFIGURATION
@@ -39,9 +39,10 @@ services:
       PORT: 3000
       DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres123}@postgres:5432/${POSTGRES_DB:-book_shipping}?schema=public
       GOOGLE_SPREADSHEET_ID: 1YndQ-dB3jDJMGDUFW6AlSU-14wvFY9dtpx-lrGlpEKk
-      GOOGLE_SERVICE_ACCOUNT_PATH: /app/credentials.json
+      GOOGLE_SERVICE_ACCOUNT_PATH: /app/credentials/credentials.json
+      JWT_SECRET: ${JWT_SECRET:-super-secret-key-book-shipping-2026}
     volumes:
-      - ./backend/credentials.json:/app/credentials.json:ro
+      - ./backend/credentials:/app/credentials:ro
     ports:
       - "3000:3000"
 
