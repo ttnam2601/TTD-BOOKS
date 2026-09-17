@@ -1,4 +1,4 @@
-﻿// ============================================================================
+// ============================================================================
 // PRISMA SCHEMA - AUTOMATED BOOK SHIPPING SYSTEM
 // Version: v2026.09.17.01
 // 2026-09-17 (Anh chốt): Ánh xạ đúng 5 bảng quan hệ tương thích với trigger PostgreSQL mức DB

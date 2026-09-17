@@ -1,4 +1,4 @@
-﻿// ============================================================================
+// ============================================================================
 // BOOK CATALOG SERVICE - CORE BOOK MAPPING LOGIC
 // Version: v2026.09.17.01
 // 2026-09-17 (Anh chốt): Cung cấp hàm Get_Book_Set(level, currentMonth) và CRUD cấu hình sách cho Ops
@@ -27,7 +27,7 @@ export class BookCatalogService {
       const normalizedLevel = level.trim();
       const catalogItem = await this.prisma.bookCatalog.findUnique({
         where: {
-          uq_level_month: {
+          level_apply_month: {
             level: normalizedLevel,
             apply_month: currentMonth,
           },
@@ -92,7 +92,7 @@ export class BookCatalogService {
       for (const month of months) {
         await tx.bookCatalog.upsert({
           where: {
-            uq_level_month: {
+            level_apply_month: {
               level: normalizedLevel,
               apply_month: month,
             },
