@@ -1,0 +1,109 @@
+﻿// ============================================================================
+// PRISMA SCHEMA - AUTOMATED BOOK SHIPPING SYSTEM
+// Version: v2026.09.17.01
+// 2026-09-17 (Anh chốt): Ánh xạ đúng 5 bảng quan hệ tương thích với trigger PostgreSQL mức DB
+// ============================================================================
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model StudentsMaster {
+  student_uid        String            @id @map("student_uid") @db.VarChar(100)
+  full_name          String            @map("full_name") @db.VarChar(255)
+  level              String            @map("level") @db.VarChar(100)
+  class_name         String            @map("class_name") @db.VarChar(150)
+  status             String            @map("status") @db.VarChar(100)
+  remaining_sessions Int               @default(0) @map("remaining_sessions")
+  phone              String?           @map("phone") @db.VarChar(50)
+  shipping_address   String?           @map("shipping_address") @db.Text
+  last_synced_at     DateTime?         @default(now()) @map("last_synced_at") @db.Timestamptz(6)
+  created_at         DateTime?         @default(now()) @map("created_at") @db.Timestamptz(6)
+  updated_at         DateTime?         @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  shipping_queues    ShippingQueue[]
+  shipping_histories ShippingHistory[]
+
+  @@index([status], map: "idx_students_master_status")
+  @@index([level], map: "idx_students_master_level")
+  @@map("students_master")
+}
+
+model BookCatalog {
+  id          Int       @id @default(autoincrement()) @map("id")
+  level       String    @map("level") @db.VarChar(100)
+  apply_month Int       @map("apply_month")
+  book_code   String    @map("book_code") @db.VarChar(100)
+  book_name   String    @map("book_name") @db.VarChar(255)
+  notes       String?   @map("notes") @db.Text
+  created_at  DateTime? @default(now()) @map("created_at") @db.Timestamptz(6)
+  updated_at  DateTime? @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@unique([level, apply_month], map: "uq_level_month")
+  @@index([level, apply_month], map: "idx_book_catalog_lookup")
+  @@map("book_catalog")
+}
+
+model ShippingQueue {
+  id               String         @id @default(dbgenerated("uuid_generate_v4()")) @map("id") @db.Uuid
+  student_uid      String         @map("student_uid") @db.VarChar(100)
+  full_name        String         @map("full_name") @db.VarChar(255)
+  level            String         @map("level") @db.VarChar(100)
+  class_name       String         @map("class_name") @db.VarChar(150)
+  book_code        String         @map("book_code") @db.VarChar(100)
+  book_name        String         @map("book_name") @db.VarChar(255)
+  phone            String?        @map("phone") @db.VarChar(50)
+  shipping_address String?        @map("shipping_address") @db.Text
+  trigger_reason   String         @map("trigger_reason") @db.VarChar(100)
+  status           String         @default("PENDING") @map("status") @db.VarChar(50)
+  queued_at        DateTime?      @default(now()) @map("queued_at") @db.Timestamptz(6)
+
+  student          StudentsMaster @relation(fields: [student_uid], references: [student_uid], onDelete: Cascade)
+
+  @@unique([student_uid, book_code, status], map: "uq_student_pending_book")
+  @@index([status], map: "idx_shipping_queue_status")
+  @@index([student_uid], map: "idx_shipping_queue_student")
+  @@map("shipping_queue")
+}
+
+model ShippingHistory {
+  id          String         @id @default(dbgenerated("uuid_generate_v4()")) @map("id") @db.Uuid
+  student_uid String         @map("student_uid") @db.VarChar(100)
+  full_name   String         @map("full_name") @db.VarChar(255)
+  level       String         @map("level") @db.VarChar(100)
+  class_name  String         @map("class_name") @db.VarChar(150)
+  book_code   String         @map("book_code") @db.VarChar(100)
+  book_name   String         @map("book_name") @db.VarChar(255)
+  shipped_at  DateTime       @default(now()) @map("shipped_at") @db.Timestamptz(6)
+  tracking_code String?      @map("tracking_code") @db.VarChar(150)
+  carrier     String?        @map("carrier") @db.VarChar(100)
+  confirmed_by String?       @default("OPERATOR") @map("confirmed_by") @db.VarChar(150)
+  created_at  DateTime?      @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  student     StudentsMaster @relation(fields: [student_uid], references: [student_uid], onDelete: Restrict)
+
+  @@index([student_uid, shipped_at(sort: Desc)], map: "idx_shipping_history_student")
+  @@index([student_uid, book_code], map: "idx_shipping_history_book")
+  @@map("shipping_history")
+}
+
+model ActionLogs {
+  id           String    @id @default(dbgenerated("uuid_generate_v4()")) @map("id") @db.Uuid
+  entity_type  String    @map("entity_type") @db.VarChar(50)
+  entity_id    String    @map("entity_id") @db.VarChar(100)
+  action_type  String    @map("action_type") @db.VarChar(100)
+  old_data     Json?     @map("old_data")
+  new_data     Json?     @map("new_data")
+  performed_by String    @default("SYSTEM") @map("performed_by") @db.VarChar(150)
+  created_at   DateTime? @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@index([entity_type, entity_id], map: "idx_action_logs_entity")
+  @@index([action_type], map: "idx_action_logs_action")
+  @@index([created_at(sort: Desc)], map: "idx_action_logs_created")
+  @@map("action_logs")
+}

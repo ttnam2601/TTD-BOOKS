@@ -1,0 +1,60 @@
+﻿version: '3.8'
+
+# ============================================================================
+# DOCKER COMPOSE CONFIGURATION
+# Version: v2026.09.17.01
+# 2026-09-17 (Anh chốt): Khởi chạy trọn gói CSDL PostgreSQL 15 + Trigger, NestJS Backend và Vue 3 Frontend
+# ============================================================================
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: book_shipping_postgres
+    restart: always
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-book_shipping}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres123}
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./docker/init-db.sql:/docker-entrypoint-initdb.d/init-db.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-book_shipping}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: book_shipping_backend
+    restart: always
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      PORT: 3000
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres123}@postgres:5432/${POSTGRES_DB:-book_shipping}?schema=public
+      GOOGLE_SPREADSHEET_ID: 1YndQ-dB3jDJMGDUFW6AlSU-14wvFY9dtpx-lrGlpEKk
+      GOOGLE_SERVICE_ACCOUNT_PATH: /app/credentials.json
+    volumes:
+      - ./backend/credentials.json:/app/credentials.json:ro
+    ports:
+      - "3000:3000"
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: book_shipping_frontend
+    restart: always
+    depends_on:
+      - backend
+    ports:
+      - "80:80"
+
+volumes:
+  pgdata:
