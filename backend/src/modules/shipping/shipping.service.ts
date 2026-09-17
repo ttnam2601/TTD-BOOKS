@@ -63,6 +63,9 @@ export class ShippingService {
 
     return this.prisma.shippingQueue.findMany({
       where,
+      include: {
+        student: true,
+      },
       orderBy: { queued_at: 'desc' },
     });
   }
@@ -84,6 +87,9 @@ export class ShippingService {
 
     return this.prisma.shippingHistory.findMany({
       where,
+      include: {
+        student: true,
+      },
       orderBy: { shipped_at: 'desc' },
       take: query.limit ? Number(query.limit) : 100,
     });

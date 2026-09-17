@@ -88,21 +88,55 @@
       >
         <el-table-column type="selection" width="50" align="center" />
         
-        <el-table-column prop="student_uid" label="Mã HS (UID)" width="120" sortable>
+        <el-table-column prop="student_uid" label="UID" width="110" sortable>
           <template #default="{ row }">
-            <el-tag size="small" type="info" effect="plain">{{ row.student_uid }}</el-tag>
+            <el-tag size="small" type="info" effect="plain">{{ row.student?.student_uid || row.student_uid }}</el-tag>
           </template>
         </el-table-column>
 
-        <el-table-column prop="full_name" label="Họ và Tên" min-width="160" />
+        <el-table-column label="SID" width="100">
+          <template #default="{ row }">
+            <span>{{ row.student?.sid || '-' }}</span>
+          </template>
+        </el-table-column>
 
-        <el-table-column prop="level" label="Trình độ" width="130">
+        <el-table-column prop="full_name" label="Họ và Tên" min-width="150" />
+
+        <el-table-column label="CID" width="100">
+          <template #default="{ row }">
+            <el-tag size="small" effect="plain">{{ row.student?.cid || '-' }}</el-tag>
+          </template>
+        </el-table-column>
+
+        <el-table-column label="Mã Lớp" width="140">
+          <template #default="{ row }">
+            <span style="font-weight: 500;">{{ row.student?.class_code || row.class_name }}</span>
+          </template>
+        </el-table-column>
+
+        <el-table-column prop="level" label="Tên Trình Độ" width="140">
           <template #default="{ row }">
             <el-tag size="small" type="primary">{{ row.level }}</el-tag>
           </template>
         </el-table-column>
 
-        <el-table-column prop="class_name" label="Lớp học" width="130" />
+        <el-table-column label="Trạng Thái" width="130">
+          <template #default="{ row }">
+            <el-tag size="small" effect="light" :type="row.student?.status === 'Đang học' ? 'success' : 'warning'">
+              {{ row.student?.status || 'Chờ xử lý' }}
+            </el-tag>
+          </template>
+        </el-table-column>
+
+        <el-table-column label="Buổi Còn Lại" width="110" align="center">
+          <template #default="{ row }">
+            <el-badge
+              :value="row.student?.remaining_sessions ?? 0"
+              class="item"
+              :type="(row.student?.remaining_sessions ?? 0) <= 8 ? 'danger' : 'info'"
+            />
+          </template>
+        </el-table-column>
 
         <el-table-column label="Sách cần xuất" min-width="200">
           <template #default="{ row }">

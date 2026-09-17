@@ -1,4 +1,4 @@
-﻿// ============================================================================
+// ============================================================================
 // HOURLY SYNC WORKER (WORKER 1)
 // Version: v2026.09.17.01
 // 2026-09-17 (Anh chốt): Chạy tự động phút thứ 20 mỗi giờ: Kéo Google Sheets, Upsert Students_Master,
@@ -43,19 +43,39 @@ export class HourlySyncWorker {
         const student = await this.prisma.studentsMaster.upsert({
           where: { student_uid: row.student_uid },
           update: {
+            sid: row.sid,
             full_name: row.full_name,
-            level: row.level,
+            cid: row.cid,
+            class_code: row.class_code,
             class_name: row.class_name,
+            level: row.level,
             status: row.status,
+            join_date: row.join_date,
+            teacher_type: row.teacher_type,
+            class_type: row.class_type,
+            subject: row.subject,
+            student_carer: row.student_carer,
+            lesson_learn: row.lesson_learn,
+            total_less: row.total_less,
             remaining_sessions: row.remaining_sessions,
             last_synced_at: new Date(),
           },
           create: {
             student_uid: row.student_uid,
+            sid: row.sid,
             full_name: row.full_name,
-            level: row.level,
+            cid: row.cid,
+            class_code: row.class_code,
             class_name: row.class_name,
+            level: row.level,
             status: row.status,
+            join_date: row.join_date,
+            teacher_type: row.teacher_type,
+            class_type: row.class_type,
+            subject: row.subject,
+            student_carer: row.student_carer,
+            lesson_learn: row.lesson_learn,
+            total_less: row.total_less,
             remaining_sessions: row.remaining_sessions,
           },
         });

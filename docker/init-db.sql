@@ -9,17 +9,29 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
 -- ============================================================================
 -- 1. BẢNG STUDENTS_MASTER (Bản sao Google Sheets + Thông tin Giao hàng)
--- 2026-09-17 (Anh chốt): Lưu trữ mirror từ sheet Class.Student.Total, bổ sung cột phone và shipping_address từ file import ngoài.
+-- 2026-09-17 (Anh chốt): Chuẩn hóa 100% khớp các cột từ Google Sheet Class.Student.Total:
+-- student (SID), studentName, contactCode (CID), classCode (Mã lớp), studentStatus, joinDate, teacherType,
+-- classType, level (Trình độ), subject, studentCarer, lessonLearn, totalLess, remainingLess, UID
 -- ============================================================================
 CREATE TABLE IF NOT EXISTS students_master (
-    student_uid VARCHAR(100) PRIMARY KEY,
-    full_name VARCHAR(255) NOT NULL,
-    level VARCHAR(100) NOT NULL,
-    class_name VARCHAR(150) NOT NULL,
-    status VARCHAR(100) NOT NULL,
-    remaining_sessions INT DEFAULT 0,
-    phone VARCHAR(50),
-    shipping_address TEXT,
+    student_uid VARCHAR(100) PRIMARY KEY, -- UID (Cột O) hoặc fallback SID
+    sid VARCHAR(100),                     -- student (Cột A - SID)
+    full_name VARCHAR(255) NOT NULL,      -- studentName (Cột B)
+    cid VARCHAR(100),                     -- contactCode (Cột C - CID)
+    class_code VARCHAR(150),              -- classCode (Cột D - Mã lớp)
+    class_name VARCHAR(150) NOT NULL,     -- Tên lớp (hoặc lấy từ classCode)
+    status VARCHAR(100) NOT NULL,         -- studentStatus (Cột E)
+    join_date VARCHAR(50),                -- joinDate (Cột F)
+    teacher_type VARCHAR(100),            -- teacherType (Cột G)
+    class_type VARCHAR(100),              -- classType (Cột H)
+    level VARCHAR(100) NOT NULL,          -- level / Trình độ (Cột I)
+    subject VARCHAR(100),                 -- subject (Cột J)
+    student_carer VARCHAR(150),           -- studentCarer (Cột K)
+    lesson_learn INT DEFAULT 0,           -- lessonLearn (Cột L)
+    total_less INT DEFAULT 0,             -- totalLess (Cột M)
+    remaining_sessions INT DEFAULT 0,     -- remainingLess (Cột N)
+    phone VARCHAR(50),                    -- Import bổ sung ngoài
+    shipping_address TEXT,                -- Import bổ sung ngoài
     last_synced_at TIMESTAMPTZ DEFAULT NOW(),
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
@@ -27,6 +39,9 @@ CREATE TABLE IF NOT EXISTS students_master (
 
 CREATE INDEX IF NOT EXISTS idx_students_master_status ON students_master(status);
 CREATE INDEX IF NOT EXISTS idx_students_master_level ON students_master(level);
+CREATE INDEX IF NOT EXISTS idx_students_master_sid ON students_master(sid);
+CREATE INDEX IF NOT EXISTS idx_students_master_cid ON students_master(cid);
+CREATE INDEX IF NOT EXISTS idx_students_master_class_code ON students_master(class_code);
 
 -- ============================================================================
 -- 2. BẢNG BOOK_CATALOG (Cấu hình ánh xạ Sách theo Trình độ + Tháng 1-12)
@@ -135,12 +150,14 @@ BEGIN
             'STUDENT_UPDATED',
             jsonb_build_object(
                 'status', OLD.status,
+                'class_code', OLD.class_code,
                 'class_name', OLD.class_name,
                 'level', OLD.level,
                 'remaining_sessions', OLD.remaining_sessions
             ),
             jsonb_build_object(
                 'status', NEW.status,
+                'class_code', NEW.class_code,
                 'class_name', NEW.class_name,
                 'level', NEW.level,
                 'remaining_sessions', NEW.remaining_sessions

@@ -15,10 +15,20 @@ generator client {
 
 model StudentsMaster {
   student_uid        String            @id @map("student_uid") @db.VarChar(100)
+  sid                String?           @map("sid") @db.VarChar(100)
   full_name          String            @map("full_name") @db.VarChar(255)
-  level              String            @map("level") @db.VarChar(100)
+  cid                String?           @map("cid") @db.VarChar(100)
+  class_code         String?           @map("class_code") @db.VarChar(150)
   class_name         String            @map("class_name") @db.VarChar(150)
   status             String            @map("status") @db.VarChar(100)
+  join_date          String?           @map("join_date") @db.VarChar(50)
+  teacher_type       String?           @map("teacher_type") @db.VarChar(100)
+  class_type         String?           @map("class_type") @db.VarChar(100)
+  level              String            @map("level") @db.VarChar(100)
+  subject            String?           @map("subject") @db.VarChar(100)
+  student_carer      String?           @map("student_carer") @db.VarChar(150)
+  lesson_learn       Int?              @default(0) @map("lesson_learn")
+  total_less         Int?              @default(0) @map("total_less")
   remaining_sessions Int               @default(0) @map("remaining_sessions")
   phone              String?           @map("phone") @db.VarChar(50)
   shipping_address   String?           @map("shipping_address") @db.Text
@@ -31,6 +41,9 @@ model StudentsMaster {
 
   @@index([status], map: "idx_students_master_status")
   @@index([level], map: "idx_students_master_level")
+  @@index([sid], map: "idx_students_master_sid")
+  @@index([cid], map: "idx_students_master_cid")
+  @@index([class_code], map: "idx_students_master_class_code")
   @@map("students_master")
 }
 

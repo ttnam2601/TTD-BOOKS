@@ -10,12 +10,22 @@ import * as fs from 'fs';
 import * as path from 'path';
 
 export interface StudentMasterRow {
-  student_uid: string;
-  full_name: string;
-  level: string;
-  class_name: string;
-  status: string;
-  remaining_sessions: number;
+  student_uid: string; // Cột O (UID) hoặc Cột A (SID)
+  sid?: string;        // Cột A: student
+  full_name: string;   // Cột B: studentName
+  cid?: string;        // Cột C: contactCode
+  class_code?: string; // Cột D: classCode (Mã lớp)
+  class_name: string;  // Tên lớp (lấy từ classCode hoặc level)
+  status: string;      // Cột E: studentStatus
+  join_date?: string;  // Cột F: joinDate
+  teacher_type?: string;// Cột G: teacherType
+  class_type?: string; // Cột H: classType
+  level: string;       // Cột I: level (Tên trình độ)
+  subject?: string;    // Cột J: subject
+  student_carer?: string; // Cột K: studentCarer
+  lesson_learn?: number;  // Cột L: lessonLearn
+  total_less?: number;    // Cột M: totalLess
+  remaining_sessions: number; // Cột N: remainingLess
 }
 
 @Injectable()
@@ -72,12 +82,28 @@ export class GoogleSheetsService {
   }
 
   /**
-   * 2026-09-17 (Anh chốt): Kéo dữ liệu từ Google Sheets với retry tối đa 3 lần để phòng vệ lỗi Rate limit / 429
+   * 2026-09-17 (Anh chốt): Kéo dữ liệu từ Google Sheets với retry tối đa 3 lần
+   * Chuẩn hóa mapping 100% khớp các cột theo bảng tính Class.Student.Total:
+   * Col A (0): student (SID)
+   * Col B (1): studentName
+   * Col C (2): contactCode (CID)
+   * Col D (3): classCode (Mã lớp)
+   * Col E (4): studentStatus
+   * Col F (5): joinDate
+   * Col G (6): teacherType
+   * Col H (7): classType
+   * Col I (8): level (Tên trình độ)
+   * Col J (9): subject
+   * Col K (10): studentCarer
+   * Col L (11): lessonLearn
+   * Col M (12): totalLess
+   * Col N (13): remainingLess (Số buổi còn lại)
+   * Col O (14): UID
    */
   async fetchMasterStudents(): Promise<StudentMasterRow[]> {
     const sheets = this.getSheetsClient();
     const spreadsheetId = process.env.GOOGLE_SPREADSHEET_ID || this.defaultSpreadsheetId;
-    const range = `${this.defaultSheetName}!A2:Z`;
+    const range = `${this.defaultSheetName}!A2:P`;
 
     if (!sheets) {
       // 2026-09-17 (Anh chốt): Fallback dữ liệu mẫu nếu chưa gắn credentials trên môi trường dev local
@@ -101,19 +127,46 @@ export class GoogleSheetsService {
           return [];
         }
 
-        // Map cột: UID Học sinh, Tên học sinh, Trình độ, Lớp đang học, Trạng thái, Buổi còn lại
         const students: StudentMasterRow[] = rows
-          .filter((r) => r[0] && r[0].toString().trim() !== '')
-          .map((r) => ({
-            student_uid: r[0]?.toString().trim(),
-            full_name: r[1]?.toString().trim() || 'Học sinh',
-            level: r[2]?.toString().trim() || 'Chưa phân cấp',
-            class_name: r[3]?.toString().trim() || 'Chưa xếp lớp',
-            status: r[4]?.toString().trim() || 'Chờ xử lý',
-            remaining_sessions: parseInt(r[5]?.toString() || '0', 10) || 0,
-          }));
+          .filter((r) => (r[14] && r[14].toString().trim() !== '') || (r[0] && r[0].toString().trim() !== ''))
+          .map((r) => {
+            const sid = r[0]?.toString().trim() || '';
+            const fullName = r[1]?.toString().trim() || 'Học sinh';
+            const cid = r[2]?.toString().trim() || '';
+            const classCode = r[3]?.toString().trim() || '';
+            const status = r[4]?.toString().trim() || 'Chờ xử lý';
+            const joinDate = r[5]?.toString().trim() || '';
+            const teacherType = r[6]?.toString().trim() || '';
+            const classType = r[7]?.toString().trim() || '';
+            const level = r[8]?.toString().trim() || 'Chưa phân cấp';
+            const subject = r[9]?.toString().trim() || '';
+            const studentCarer = r[10]?.toString().trim() || '';
+            const lessonLearn = parseInt(r[11]?.toString() || '0', 10) || 0;
+            const totalLess = parseInt(r[12]?.toString() || '0', 10) || 0;
+            const remainingLess = parseInt(r[13]?.toString() || '0', 10) || 0;
+            const uid = r[14]?.toString().trim() || sid;
 
-        this.logger.log(`Kéo thành công ${students.length} bản ghi học sinh từ Google Sheet.`);
+            return {
+              student_uid: uid,
+              sid,
+              full_name: fullName,
+              cid,
+              class_code: classCode,
+              class_name: classCode || level,
+              status,
+              join_date: joinDate,
+              teacher_type: teacherType,
+              class_type: classType,
+              level,
+              subject,
+              student_carer: studentCarer,
+              lesson_learn: lessonLearn,
+              total_less: totalLess,
+              remaining_sessions: remainingLess,
+            };
+          });
+
+        this.logger.log(`Kéo thành công ${students.length} bản ghi học sinh từ Google Sheet Class.Student.Total.`);
         return students;
       } catch (error) {
         this.logger.error(`Lỗi fetch Google Sheet (Lần thử ${attempts}/${maxAttempts}): ${error.message}`);
