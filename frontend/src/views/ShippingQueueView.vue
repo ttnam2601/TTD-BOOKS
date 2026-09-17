@@ -149,14 +149,14 @@
 
         <el-table-column label="Thông tin nhận hàng" min-width="220">
           <template #default="{ row }">
-            <div v-if="row.phone || row.shipping_address" class="contact-info">
-              <div v-if="row.phone" class="contact-phone">
+            <div v-if="(row.phone || row.student?.phone) || (row.shipping_address || row.student?.shipping_address)" class="contact-info">
+              <div v-if="row.phone || row.student?.phone" class="contact-phone">
                 <el-icon><Phone /></el-icon>
-                <span>{{ row.phone }}</span>
+                <span>{{ row.phone || row.student?.phone }}</span>
               </div>
-              <div v-if="row.shipping_address" class="contact-address">
+              <div v-if="row.shipping_address || row.student?.shipping_address" class="contact-address">
                 <el-icon><Location /></el-icon>
-                <span>{{ row.shipping_address }}</span>
+                <span>{{ row.shipping_address || row.student?.shipping_address }}</span>
               </div>
             </div>
             <el-tag v-else size="small" type="danger" effect="plain">Chưa có SĐT / Địa chỉ</el-tag>

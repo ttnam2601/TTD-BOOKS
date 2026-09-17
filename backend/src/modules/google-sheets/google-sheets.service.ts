@@ -188,6 +188,125 @@ export class GoogleSheetsService {
   }
 
   /**
+   * 2026-09-17 (Anh chốt): Kéo SĐT từ sheet 'RAW SHIP' và Địa chỉ từ sheet 'RAW ĐCHI'
+   * Spreadsheet ID: 1qJkZeTokSR6GN5mWyKg0tSxJ0-q1qFze1vV0nmyKX_4
+   * Nguyên tắc: Quét từ dưới lên trên (dòng dưới cùng được ưu tiên nhất) và merge theo UID / SID / Tên
+   */
+  async fetchContactsFromShippingSheets(
+    spreadsheetId?: string,
+  ): Promise<Map<string, { phone?: string; address?: string }>> {
+    const targetSheetId =
+      spreadsheetId ||
+      process.env.SHIPPING_SPREADSHEET_ID ||
+      '1qJkZeTokSR6GN5mWyKg0tSxJ0-q1qFze1vV0nmyKX_4';
+    const sheets = this.getSheetsClient();
+    const contactMap = new Map<string, { phone?: string; address?: string }>();
+
+    if (!sheets) {
+      this.logger.warn('Chưa cấu hình Google Sheets client, bỏ qua nạp RAW SHIP & RAW ĐCHI.');
+      return contactMap;
+    }
+
+    // 1. Quét sheet 'RAW ĐCHI' (Địa chỉ) - Quét từ dưới lên trên
+    try {
+      const addrRes = await sheets.spreadsheets.values.get({
+        spreadsheetId: targetSheetId,
+        range: `'RAW ĐCHI'!A1:Z`,
+      });
+      const rows = addrRes.data.values;
+      if (rows && rows.length > 1) {
+        const headers = rows[0].map((h: any) => h?.toString().trim().toLowerCase());
+        const uidColIdx = headers.findIndex((h: string) => h.includes('uid') || h.includes('mã hs') || h.includes('mã học sinh'));
+        const sidColIdx = headers.findIndex((h: string) => h === 'sid' || h === 'student' || h.includes('mã'));
+        const addrColIdx = headers.findIndex((h: string) => h.includes('địa chỉ') || h.includes('address') || h.includes('đchi'));
+        const nameColIdx = headers.findIndex((h: string) => h.includes('tên') || h.includes('name'));
+
+        // Lặp từ dưới lên trên (hàng cuối -> hàng 1)
+        for (let i = rows.length - 1; i >= 1; i--) {
+          const row = rows[i];
+          const rawUid = (uidColIdx !== -1 ? row[uidColIdx] : null)?.toString().trim();
+          const rawSid = (sidColIdx !== -1 ? row[sidColIdx] : null)?.toString().trim();
+          const rawName = (nameColIdx !== -1 ? row[nameColIdx] : null)?.toString().trim().toLowerCase();
+          const address = (addrColIdx !== -1 ? row[addrColIdx] : null)?.toString().trim();
+
+          if (!address) continue;
+
+          // Lưu theo UID, SID hoặc Tên nếu chưa có (vì duyệt từ dưới lên nên cái đầu tiên gặp là dòng mới nhất)
+          if (rawUid && !contactMap.has(rawUid)) {
+            contactMap.set(rawUid, { address });
+          } else if (rawUid && !contactMap.get(rawUid)?.address) {
+            contactMap.get(rawUid)!.address = address;
+          }
+
+          if (rawSid && !contactMap.has(rawSid)) {
+            contactMap.set(rawSid, { address });
+          } else if (rawSid && !contactMap.get(rawSid)?.address) {
+            contactMap.get(rawSid)!.address = address;
+          }
+
+          if (rawName && !contactMap.has(`name:${rawName}`)) {
+            contactMap.set(`name:${rawName}`, { address });
+          } else if (rawName && !contactMap.get(`name:${rawName}`)?.address) {
+            contactMap.get(`name:${rawName}`)!.address = address;
+          }
+        }
+        this.logger.log(`Nạp xong dữ liệu địa chỉ từ sheet 'RAW ĐCHI'.`);
+      }
+    } catch (err) {
+      this.logger.error(`Lỗi đọc sheet 'RAW ĐCHI': ${err.message}`);
+    }
+
+    // 2. Quét sheet 'RAW SHIP' (SĐT) - Quét từ dưới lên trên
+    try {
+      const shipRes = await sheets.spreadsheets.values.get({
+        spreadsheetId: targetSheetId,
+        range: `'RAW SHIP'!A1:Z`,
+      });
+      const rows = shipRes.data.values;
+      if (rows && rows.length > 1) {
+        const headers = rows[0].map((h: any) => h?.toString().trim().toLowerCase());
+        const uidColIdx = headers.findIndex((h: string) => h.includes('uid') || h.includes('mã hs') || h.includes('mã học sinh'));
+        const sidColIdx = headers.findIndex((h: string) => h === 'sid' || h === 'student' || h.includes('mã'));
+        const phoneColIdx = headers.findIndex((h: string) => h.includes('sđt') || h.includes('điện thoại') || h.includes('phone') || h.includes('sdt'));
+        const nameColIdx = headers.findIndex((h: string) => h.includes('tên') || h.includes('name'));
+
+        for (let i = rows.length - 1; i >= 1; i--) {
+          const row = rows[i];
+          const rawUid = (uidColIdx !== -1 ? row[uidColIdx] : null)?.toString().trim();
+          const rawSid = (sidColIdx !== -1 ? row[sidColIdx] : null)?.toString().trim();
+          const rawName = (nameColIdx !== -1 ? row[nameColIdx] : null)?.toString().trim().toLowerCase();
+          const phone = (phoneColIdx !== -1 ? row[phoneColIdx] : null)?.toString().trim();
+
+          if (!phone) continue;
+
+          if (rawUid) {
+            const current = contactMap.get(rawUid) || {};
+            if (!current.phone) current.phone = phone;
+            contactMap.set(rawUid, current);
+          }
+
+          if (rawSid) {
+            const current = contactMap.get(rawSid) || {};
+            if (!current.phone) current.phone = phone;
+            contactMap.set(rawSid, current);
+          }
+
+          if (rawName) {
+            const current = contactMap.get(`name:${rawName}`) || {};
+            if (!current.phone) current.phone = phone;
+            contactMap.set(`name:${rawName}`, current);
+          }
+        }
+        this.logger.log(`Nạp xong dữ liệu SĐT từ sheet 'RAW SHIP'.`);
+      }
+    } catch (err) {
+      this.logger.error(`Lỗi đọc sheet 'RAW SHIP': ${err.message}`);
+    }
+
+    return contactMap;
+  }
+
+  /**
    * Mock dữ liệu học sinh phục vụ dev và test
    */
   private getMockStudents(): StudentMasterRow[] {

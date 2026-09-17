@@ -38,7 +38,19 @@ export class HourlySyncWorker {
       const externalStudents = await this.googleSheetsService.fetchMasterStudents();
       const currentMonth = new Date().getMonth() + 1;
 
+      // 2026-09-17 (Anh chốt): Nạp SĐT từ 'RAW SHIP' và Địa chỉ từ 'RAW ĐCHI' (quét từ dưới lên trên)
+      const contactMap = await this.googleSheetsService.fetchContactsFromShippingSheets();
+
       for (const row of externalStudents) {
+        // Tìm thông tin liên hệ trong contactMap theo UID -> SID -> Tên
+        const contactInfo =
+          contactMap.get(row.student_uid) ||
+          (row.sid ? contactMap.get(row.sid) : undefined) ||
+          contactMap.get(`name:${row.full_name.trim().toLowerCase()}`);
+
+        const resolvedPhone = contactInfo?.phone;
+        const resolvedAddress = contactInfo?.address;
+
         // 1. Upsert vào Students_Master (Trigger AFTER UPDATE trên PostgreSQL sẽ tự bắt nếu đổi trạng thái/lớp/level)
         const student = await this.prisma.studentsMaster.upsert({
           where: { student_uid: row.student_uid },
@@ -58,6 +70,8 @@ export class HourlySyncWorker {
             lesson_learn: row.lesson_learn,
             total_less: row.total_less,
             remaining_sessions: row.remaining_sessions,
+            ...(resolvedPhone ? { phone: resolvedPhone } : {}),
+            ...(resolvedAddress ? { shipping_address: resolvedAddress } : {}),
             last_synced_at: new Date(),
           },
           create: {
@@ -77,9 +91,26 @@ export class HourlySyncWorker {
             lesson_learn: row.lesson_learn,
             total_less: row.total_less,
             remaining_sessions: row.remaining_sessions,
+            phone: resolvedPhone || null,
+            shipping_address: resolvedAddress || null,
           },
         });
         syncedCount++;
+
+        // Cập nhật SĐT/Địa chỉ vào hàng đợi PENDING nếu trước đó chưa có
+        if (resolvedPhone || resolvedAddress) {
+          await this.prisma.shippingQueue.updateMany({
+            where: {
+              student_uid: student.student_uid,
+              status: 'PENDING',
+              OR: [{ phone: null }, { shipping_address: null }],
+            },
+            data: {
+              ...(resolvedPhone ? { phone: resolvedPhone } : {}),
+              ...(resolvedAddress ? { shipping_address: resolvedAddress } : {}),
+            },
+          });
+        }
 
         // 2. Chỉ xét nhóm [ACTIVE] để phát sinh lệnh sách
         if (!this.ACTIVE_STATUSES.includes(student.status)) {
